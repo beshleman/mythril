@@ -2,23 +2,22 @@ use crate::error::{self, Error, Result};
 use bitflags::bitflags;
 use core::ops::{Index, IndexMut};
 use core::ptr::NonNull;
-use x86_64::structures::paging::frame::PhysFrame;
-use x86_64::structures::paging::page::PageSize;
-use x86_64::structures::paging::page::Size4KiB;
-use x86_64::structures::paging::page_table::PageTable;
-use x86_64::structures::paging::page_table::PageTableFlags;
-use x86_64::structures::paging::FrameAllocator;
-use x86_64::ux;
-use x86_64::PhysAddr;
-use x86_64::VirtAddr;
+use x86::bits64::paging::PAddr;
+use x86::bits64::paging::VAddr;
+use ux;
+
+struct PhysFrame(u64);
+impl PhysFrame {
+    fn start_address(&self) -> PAddr { Paddr::from_u64(self.0) }
+}
 
 pub struct GuestAddressSpace {
-    frame: PhysFrame<Size4KiB>,
+    frame: PhysFrame,
     root: NonNull<EptPml4Table>,
 }
 
 impl GuestAddressSpace {
-    pub fn new(alloc: &mut impl FrameAllocator<Size4KiB>) -> Result<Self> {
+    pub fn new(alloc: &mut impl Allocator) -> Result<Self> {
         let mut ept_pml4_frame = alloc.allocate_frame().ok_or(Error::AllocError(
             "Failed to allocate address space EPT root",
         ))?;
@@ -35,9 +34,9 @@ impl GuestAddressSpace {
 
     pub fn map_frame(
         &mut self,
-        alloc: &mut impl FrameAllocator<Size4KiB>,
+        alloc: &mut impl Allocator,
         guest_addr: GuestPhysAddr,
-        host_frame: PhysFrame<Size4KiB>,
+        host_frame: PhysFrame,
         readonly: bool,
     ) -> Result<()> {
         map_guest_memory(
@@ -56,7 +55,7 @@ impl GuestAddressSpace {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct GuestPhysAddr(VirtAddr);
+pub struct GuestPhysAddr(VAddr);
 impl GuestPhysAddr {
     pub fn new(addr: u64) -> Self {
         Self(VirtAddr::new(addr))
@@ -83,7 +82,7 @@ impl GuestPhysAddr {
     }
 }
 
-type GuestVirtAddr = VirtAddr;
+type GuestVirtAddr = VAddr;
 
 #[repr(align(4096))]
 pub struct EptTable<T> {
@@ -91,7 +90,7 @@ pub struct EptTable<T> {
 }
 
 impl<T> EptTable<T> {
-    pub fn new(frame: &mut PhysFrame<Size4KiB>) -> Result<&mut Self> {
+    pub fn new(frame: &mut PhysFrame) -> Result<&mut Self> {
         unsafe { (frame.start_address().as_u64() as *mut Self).as_mut() }
             .ok_or(Error::AllocError("EptTable given invalid frame"))
     }
@@ -134,12 +133,8 @@ impl EptTableEntry {
         EptTableFlags::from_bits_truncate(self.entry)
     }
 
-    pub fn addr(&self) -> PhysAddr {
-        PhysAddr::new(self.entry & 0x000fffff_fffff000)
-    }
-
-    pub fn frame(&self) -> Result<PhysFrame> {
-        Ok(PhysFrame::containing_address(self.addr()))
+    pub fn addr(&self) -> PAddr {
+        PAddr::from_u64(self.entry & 0x000fffff_fffff000)
     }
 
     pub fn set_addr(&mut self, addr: PhysAddr, flags: EptTableFlags) {
@@ -184,16 +179,12 @@ impl EptPageTableEntry {
         EptTableFlags::from_bits_truncate(self.entry)
     }
 
-    pub fn addr(&self) -> PhysAddr {
-        PhysAddr::new(self.entry & 0x000fffff_fffff000)
+    pub fn addr(&self) -> PAddr {
+        PAddr::from_u64(self.entry & 0x000fffff_fffff000)
     }
 
-    pub fn frame(&self) -> Result<PhysFrame> {
-        Ok(PhysFrame::containing_address(self.addr()))
-    }
-
-    pub fn set_addr(&mut self, addr: PhysAddr, flags: EptTableFlags) {
-        assert!(addr.is_aligned(Size4KiB::SIZE));
+    pub fn set_addr(&mut self, addr: PAddr, flags: EptTableFlags) {
+        assert!(addr.is_aligned(4096));
         self.entry = (addr.as_u64()) | flags.bits();
     }
 
@@ -234,10 +225,10 @@ pub type EptPageDirectory = EptTable<EptPageDirectoryEntry>;
 pub type EptPageTable = EptTable<EptPageTableEntry>;
 
 fn map_guest_memory(
-    alloc: &mut impl FrameAllocator<Size4KiB>,
+    alloc: &mut impl Allocator,
     guest_ept_base: &mut EptPml4Table,
     guest_addr: GuestPhysAddr,
-    host_frame: PhysFrame<Size4KiB>,
+    host_frame: PhysFrame,
     readonly: bool,
 ) -> Result<()> {
     let default_flags = EptTableFlags::READ_ACCESS

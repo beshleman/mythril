@@ -1,9 +1,13 @@
+use crate::memory::PhysFrame;
 use uefi::table::boot::{AllocateType, BootServices, MemoryType};
-use x86_64::structures::paging::frame::PhysFrame;
-use x86_64::structures::paging::page::PageSize;
-use x86_64::structures::paging::page::Size4KiB;
-use x86_64::structures::paging::{FrameAllocator, FrameDeallocator};
-use x86_64::PhysAddr;
+use x86::bits64::paging::PAddr;
+
+trait Allocator {
+    fn allocate_frames(&mut self, frames: &mut [PhysFrame]) -> Result<()>;
+    fn allocate_frame(&mut self) -> Result<PhysFrame>;
+    fn deallocate_frames(&mut self, frames: &[PhysFrame]) -> Result<()>;
+    fn deallocate_frame(&mut self, frame: PhysFrame) -> Result<()>;
+}
 
 pub struct EfiAllocator<'a> {
     bt: &'a BootServices,
