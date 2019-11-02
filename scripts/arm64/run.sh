@@ -5,7 +5,7 @@ set -e
 aarch64-linux-gnu-gcc -I src/arm64/ -o src/arm64/head.elf   \
     src/arm64/head.S                                          \
     -g                                                          \
-    -T src/arm64/linker.ld                                    \
+    -T linkers/arm64.ld                                    \
     -Werror -Wredundant-decls -Wno-pointer-arith -nostdinc      \
     -nostdlib -fno-builtin -fno-common -ffreestanding -fpic
 

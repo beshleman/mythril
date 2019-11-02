@@ -3,3 +3,4 @@
 _boot.img
 **/*.rs.bk
 debug.log
+build/

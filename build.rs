@@ -1,8 +1,10 @@
-use std::env;
+/*use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+*/
 
 fn main() {
+/*
     let out_dir = env::var_os("OUT_DIR")
         .map(PathBuf::from)
         .expect("Missing output directory");
@@ -31,4 +33,5 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}", out_dir.display());
     println!("cargo:rustc-link-lib=static=vmexit");
+*/
 }

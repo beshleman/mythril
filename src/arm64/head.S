@@ -116,7 +116,8 @@ _start:
 	ldr	x1, =start_stack
 	mov	sp, x1
 
-        /* TODO: Jump to main */
+	b start_mythril
+
 	nop
 	.size _start, . - _start
 
