@@ -11,6 +11,4 @@ A rust-based hypervisor currently requiring EFI boot, and VT-x/EPT.
 
 ## U-Boot
 
-load virtio 0 0x40100000 /head.bin                                                         
-go 0x40100040
-
+load virtio 0 0x40200000 /head.elf && bootelf
