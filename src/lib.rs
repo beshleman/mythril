@@ -15,6 +15,7 @@ pub mod arm64;
 pub use self::arm64::*;
 
 
+/*
 #[lang = "eh_personality"] extern fn eh_personality() {}
 
 use core::panic::PanicInfo;
@@ -24,3 +25,4 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
+*/
