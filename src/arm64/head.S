@@ -1,4 +1,4 @@
-#include "aarch64-asm.h"
+#include "arm64-asm.h"
 
 	.balign 32
 	.global vectors
@@ -112,7 +112,7 @@ _start:
         cmp     x1, x2
         b.lo    1b
 
-        /* Use the stack */
+        /* Update the stack pointer */
 	ldr	x1, =start_stack
 	mov	sp, x1
 
@@ -125,10 +125,6 @@ _hang:
         wfi
         b _hang
 
-/*
- * TODO: clear the damn stack, you will hate yourself soon
- * for not doing this now.
- */
 	.section .bss
 dummy_stack_end:
 	.balign	32
